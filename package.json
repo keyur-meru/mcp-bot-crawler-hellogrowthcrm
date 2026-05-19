@@ -19,9 +19,7 @@
     "dev": "tsx src/index.ts",
     "test": "tsx src/index.ts",
     "test:coverage": "c8 --reporter=text --reporter=lcov node --test --import tsx test/*.test.ts",
-    
     "typecheck": "tsc --noEmit",
-
     "lint": "tsc --noEmit",
     "clean": "rimraf dist",
     "prepublishOnly": "npm run clean && npm run build"
@@ -49,6 +47,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
+    "c8": "^11.0.0",
     "rimraf": "^5.0.10",
     "supabase": "^2.100.0",
     "tsx": "^4.16.2",
