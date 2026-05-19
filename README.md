@@ -209,3 +209,4 @@ MIT — see [`LICENSE`](LICENSE).
 ## Disclaimer
 
 This project helps you observe and govern bots interacting with **your own** website. Do not use it to crawl, scrape, or analyze third-party sites without permission. Always respect `robots.txt`, terms of service, and applicable law.
+"# mcp-bot-crawler-hellogrowthcrm" 
