@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+reports/
+*.log
+*.tsbuildinfo
+
+.git/
+.gitignore
+.env
+.env.local
+.env.example
+
+.idea/
+.vscode/
+.DS_Store
