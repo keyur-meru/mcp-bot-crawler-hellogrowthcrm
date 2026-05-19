@@ -164,7 +164,7 @@ function renderCsv(summaries: BotSummary[]): string {
 }
 
 function defaultFilename(format: ReportFormat): string {
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const stamp = new Date().toISOString().replaceAll(/[:.]/g, "-");
   return `bot-report-${stamp}.${extensionFor(format)}`;
 }
 
@@ -181,11 +181,11 @@ function extensionFor(format: ReportFormat): string {
 }
 
 function escapeCsvCell(value: string): string {
-  const normalized = value.replace(/\r?\n/g, " ");
+  const normalized = value.replaceAll(/\r?\n/g, " ");
   if (!/[",]/.test(normalized)) return normalized;
-  return `"${normalized.replace(/"/g, "\"\"")}"`;
+  return `"${normalized.replaceAll('"', '""')}"`;
 }
 
 function escapeMarkdownCell(value: string): string {
-  return value.replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
+  return value.replaceAll(/\|/g, String.raw`\|`).replaceAll(/\r?\n/g, "<br>");
 }

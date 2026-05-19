@@ -155,7 +155,7 @@ export const formsExportCsv = defineTool({
       if (!data || data.length === 0) return ok("No submissions found for the given date range.");
 
       const headers = ["id", "name", "email", "company", "phone", "message", "source", "created_at"];
-      const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const escape = (v: unknown) => `"${(v == null ? "" : String(v)).replaceAll('"', '""')}"`;
       const rows = data.map((row) =>
         headers.map((h) => escape(row[h as keyof typeof row])).join(","),
       );

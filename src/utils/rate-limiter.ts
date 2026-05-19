@@ -9,7 +9,7 @@
  */
 
 export class RateLimiter {
-  private lastCall = new Map<string, number>();
+  private readonly lastCall = new Map<string, number>();
   constructor(private readonly delayMs: number) {}
 
   async wait(host: string): Promise<void> {

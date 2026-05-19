@@ -334,8 +334,8 @@ export const contentListIndustries = defineTool({
       count: INDUSTRIES.length,
       industries: INDUSTRIES.map((name) => ({
         name,
-        slug: name.toLowerCase().replace(/\s+/g, "-"),
-        url: `https://hellogrowthcrm.com/crm-for-${name.toLowerCase().replace(/\s+/g, "-")}`,
+        slug: name.toLowerCase().replaceAll(/\s+/g, "-"),
+        url: `https://hellogrowthcrm.com/crm-for-${name.toLowerCase().replaceAll(/\s+/g, "-")}`,
       })),
     });
   },

@@ -11,53 +11,65 @@ import type { RobotsGroup, RobotsTxt, SitemapEntry } from "../utils/types.js";
 export function parseRobotsTxt(text: string): RobotsTxt {
   const groups: RobotsGroup[] = [];
   const sitemaps: string[] = [];
-
   let current: RobotsGroup | null = null;
   let lastWasUa = false;
 
   for (const rawLine of text.split(/\r?\n/)) {
     const line = stripComment(rawLine).trim();
     if (!line) continue;
-
     const idx = line.indexOf(":");
     if (idx < 0) continue;
-
     const field = line.slice(0, idx).trim().toLowerCase();
     const value = line.slice(idx + 1).trim();
-
     if (field === "user-agent") {
-      if (!current || !lastWasUa) {
-        current = { userAgents: [], allow: [], disallow: [] };
-        groups.push(current);
-      }
-      current.userAgents.push(value);
-      lastWasUa = true;
-      continue;
-    }
-
-    lastWasUa = false;
-    if (field === "sitemap") {
+      ({ current, lastWasUa } = handleUserAgent(value, current, groups, lastWasUa));
+    } else if (field === "sitemap") {
       sitemaps.push(value);
-      continue;
-    }
-    if (!current) {
-      // Field outside any UA block — synthesise a global group.
-      current = { userAgents: ["*"], allow: [], disallow: [] };
-      groups.push(current);
-    }
-
-    if (field === "allow") {
-      if (value) current.allow.push(value);
-    } else if (field === "disallow") {
-      // An empty Disallow means "allow everything" — leave it out.
-      if (value) current.disallow.push(value);
-    } else if (field === "crawl-delay") {
-      const n = Number.parseFloat(value);
-      if (Number.isFinite(n)) current.crawlDelaySeconds = n;
+      lastWasUa = false;
+    } else {
+      lastWasUa = false;
+      current = handleDirective(field, value, current, groups);
     }
   }
 
   return { source: text, groups, sitemaps };
+}
+
+function handleUserAgent(
+  value: string,
+  current: RobotsGroup | null,
+  groups: RobotsGroup[],
+  lastWasUa: boolean,
+): { current: RobotsGroup; lastWasUa: true } {
+  if (!current || !lastWasUa) {
+    current = { userAgents: [], allow: [], disallow: [] };
+    groups.push(current);
+  }
+  current.userAgents.push(value);
+  return { current, lastWasUa: true };
+}
+
+function handleDirective(
+  field: string,
+  value: string,
+  current: RobotsGroup | null,
+  groups: RobotsGroup[],
+): RobotsGroup {
+  if (!current) {
+    // Field outside any UA block — synthesise a global group.
+    current = { userAgents: ["*"], allow: [], disallow: [] };
+    groups.push(current);
+  }
+  if (field === "allow") {
+    if (value) current.allow.push(value);
+  } else if (field === "disallow") {
+    // An empty Disallow means "allow everything" — leave it out.
+    if (value) current.disallow.push(value);
+  } else if (field === "crawl-delay") {
+    const n = Number.parseFloat(value);
+    if (Number.isFinite(n)) current.crawlDelaySeconds = n;
+  }
+  return current;
 }
 
 function stripComment(line: string): string {
@@ -119,8 +131,8 @@ function longestMatch(patterns: string[], path: string): string | null {
 
 function matchPattern(pattern: string, path: string): boolean {
   // Translate robots.txt globs ($, *) into a RegExp.
-  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
-  const re = "^" + escaped.replace(/\*/g, ".*").replace(/\\\$$/, "$");
+  const escaped = pattern.replaceAll(/[.+?^${}()|[\]\\]/g, String.raw`\$&`);
+  const re = "^" + escaped.replaceAll(/\*/g, ".*").replaceAll(/\\\$$/g, "$");
   try {
     return new RegExp(re).test(path);
   } catch {
@@ -163,5 +175,5 @@ export function parseSitemapIndex(xml: string): string[] {
 
 function first(text: string, re: RegExp): string | null {
   const m = re.exec(text);
-  return m && m[1] ? m[1] : null;
+  return m?.[1] ?? null;
 }

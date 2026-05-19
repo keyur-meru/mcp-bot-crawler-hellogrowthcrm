@@ -108,8 +108,7 @@ export const generateRobotsTxt = defineTool({
       "",
     ];
 
-    out.push("User-agent: *");
-    out.push("Allow: /");
+    out.push("User-agent: *", "Allow: /");
     for (const p of args.extraDisallowPaths) {
       out.push(`Disallow: ${normalizePath(p)}`);
     }
@@ -131,10 +130,7 @@ export const generateRobotsTxt = defineTool({
     if (blockList.length) {
       out.push("# --- Blocked bots --------------------------------------------------");
       for (const b of blockList) {
-        out.push(`# ${b.name}: ${b.reason}`);
-        out.push(`User-agent: ${b.name}`);
-        out.push("Disallow: /");
-        out.push("");
+        out.push(`# ${b.name}: ${b.reason}`, `User-agent: ${b.name}`, "Disallow: /", "");
       }
     }
 

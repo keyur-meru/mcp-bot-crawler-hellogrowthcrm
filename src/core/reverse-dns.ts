@@ -68,24 +68,32 @@ export async function verifyBotIdentity(
   reasons.push(`UA claims to be ${claimed.name}`);
 
   const suffixes = claimed.verifiedHostnameSuffixes ?? [];
-  if (!ptr || suffixes.length === 0) {
+
+  if (!ptr) {
     return {
       ip,
       userAgent,
       ptr,
       forwardConfirmed: false,
       identifiedAs: claimed.name,
-      trustLevel: ptr ? "unknown" : "spoofed",
-      reasons: [
-        ...reasons,
-        suffixes.length === 0
-          ? `${claimed.name} has no documented verification suffix`
-          : "No PTR available — cannot verify",
-      ],
+      trustLevel: "spoofed",
+      reasons: [...reasons, "No PTR available — cannot verify"],
     };
   }
 
-  const suffixOk = suffixes.some((s) => ptr!.toLowerCase().endsWith(s.toLowerCase()));
+  if (suffixes.length === 0) {
+    return {
+      ip,
+      userAgent,
+      ptr,
+      forwardConfirmed: false,
+      identifiedAs: claimed.name,
+      trustLevel: "unknown",
+      reasons: [...reasons, `${claimed.name} has no documented verification suffix`],
+    };
+  }
+
+  const suffixOk = suffixes.some((s) => ptr.toLowerCase().endsWith(s.toLowerCase()));
   if (!suffixOk) {
     return {
       ip,

@@ -2,7 +2,7 @@
  * Quick smoke-test: connects via SSE, initializes the MCP session, lists tools.
  * Run: node test-mcp.mjs
  */
-import http from "http";
+import http from "node:http";
 
 const BASE = "http://localhost:3008";
 
@@ -19,7 +19,7 @@ async function getLine(stream) {
           return;
         }
       }
-      buf = lines[lines.length - 1];
+      buf = lines.at(-1) ?? "";
     });
   });
 }

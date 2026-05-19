@@ -6,23 +6,42 @@
  *   stdio           — stdin/stdout for MCP host processes
  */
 
-import http from "http";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import http from "node:http";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  ListResourcesRequestSchema,
-  ReadResourceRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js"; // NOSONAR: SSE kept for Claude Desktop / SSE-protocol client compatibility
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { ZodRawShape } from "zod";
 
 import { toolsByName } from "./tools/index.js";
 import { logger } from "./utils/logger.js";
 import { getSupabase } from "./lib/supabase.js";
 
-export function buildServer(): Server {
-  const server = new Server(
+// ── Static resource data ──────────────────────────────────────────────────────
+
+const SEO_RULES_TEXT = `# SEO Rules (Guardrails)\n\n1. Always link to canonical host: \`https://hellogrowthcrm.com\` (never \`www\`).\n2. Never add internal links to legacy redirect sources.\n3. Add new indexable routes to sitemap unless intentionally excluded.\n4. Do not include redirecting URLs in sitemap entries.\n5. Keep one logical h1 per page.\n6. Every non-decorative image must have meaningful alt text.\n7. Use absolute canonical URLs in metadata.\n8. Keep paginated archives indexable and canonicalized per page.\n9. For out-of-range pagination, redirect to a valid page.\n10. Blog post OpenGraph type must be \`article\`.\n11. Static marketing pages should prefer force-static or ISR when possible.\n12. Avoid duplicate database reads between page render and metadata generation.\n13. Prefer lightweight OG/WebP assets for heavy pages.\n14. Keep Organization.sameAs current across major profiles.\n15. Add structured data only when truthful and complete.\n16. Do not ship broken hreflang references.\n17. Keep internal links crawlable (avoid JS-only critical nav links).\n18. Validate changes with typecheck + lint before merge.`;
+
+const COMPARISONS_DATA = [
+  { slug: "hubspot", name: "HubSpot", url: "https://hellogrowthcrm.com/compare/hubspot" },
+  { slug: "salesforce", name: "Salesforce", url: "https://hellogrowthcrm.com/compare/salesforce" },
+  { slug: "pipedrive", name: "Pipedrive", url: "https://hellogrowthcrm.com/compare/pipedrive" },
+  { slug: "zoho", name: "Zoho CRM", url: "https://hellogrowthcrm.com/compare/zoho" },
+  { slug: "monday-crm", name: "Monday CRM", url: "https://hellogrowthcrm.com/compare/monday-crm" },
+  { slug: "freshsales", name: "Freshsales", url: "https://hellogrowthcrm.com/compare/freshsales" },
+  { slug: "close-crm", name: "Close CRM", url: "https://hellogrowthcrm.com/compare/close-crm" },
+  { slug: "wati", name: "Wati", url: "https://hellogrowthcrm.com/compare/wati" },
+  { slug: "aisensy", name: "AiSensy", url: "https://hellogrowthcrm.com/compare/aisensy" },
+  { slug: "interakt", name: "Interakt", url: "https://hellogrowthcrm.com/compare/interakt" },
+  { slug: "leadsquared", name: "LeadSquared", url: "https://hellogrowthcrm.com/in/compare/leadsquared" },
+  { slug: "best-crm-for-small-business", name: "Best CRM for Small Business", url: "https://hellogrowthcrm.com/compare/best-crm-for-small-business" },
+];
+
+const INDUSTRY_NAMES = ["Real Estate", "Legal", "Healthcare", "Manufacturing", "SaaS", "Recruitment", "Finance", "Construction", "Education", "Insurance", "Retail", "E-commerce", "Hospitality", "Logistics", "Automotive", "Professional Services", "Non-Profit", "Technology", "Media", "Consulting"];
+
+// ── Server builder ────────────────────────────────────────────────────────────
+
+export function buildServer(): McpServer {
+  const server = new McpServer(
     {
       name: "hellogrowthcrm-bot-crawler",
       version: "1.0.0",
@@ -32,137 +51,101 @@ export function buildServer(): Server {
     { capabilities: { tools: {}, resources: {} } },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-      tools: [...toolsByName.values()].map((t) => t.definition),
-    };
-  });
+  // Register all tools dynamically from the tools registry.
+  for (const tool of toolsByName.values()) {
+    const shape = (tool.schema as unknown as { shape: ZodRawShape }).shape;
+    server.tool(
+      tool.definition.name,
+      tool.definition.description,
+      shape,
+      async (args) => tool.handle(args) as unknown as CallToolResult,
+    );
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  server.setRequestHandler(CallToolRequestSchema, (async (req: any) => {
-      const tool = toolsByName.get(req.params.name);
-      if (!tool) {
-        return {
-          content: [
-            { type: "text", text: `Unknown tool: ${req.params.name}` },
-          ],
-          isError: true,
-        };
-      }
+  // ── Static resources ──────────────────────────────────────────────────────
 
-      const parsed = tool.schema.safeParse(req.params.arguments ?? {});
-      if (!parsed.success) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Invalid arguments for ${req.params.name}: ${parsed.error.message}`,
-            },
-          ],
-          isError: true,
-        };
-      }
+  server.resource(
+    "SEO Rules & Guidelines",
+    "hellocrmwebsite://site/seo-rules",
+    { description: "SEO guardrails for hellogrowthcrm.com content", mimeType: "text/markdown" },
+    async (uri) => ({
+      contents: [{ uri: uri.toString(), mimeType: "text/markdown", text: SEO_RULES_TEXT }],
+    }),
+  );
 
-      try {
-        const result = await tool.handle(parsed.data);
-        return result;
-      } catch (err) {
-        logger.error("Tool handler threw", {
-          tool: req.params.name,
-          err: (err as Error).message,
-        });
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Internal error in ${req.params.name}: ${(err as Error).message}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }) as any);
+  server.resource(
+    "Competitor Comparisons",
+    "hellocrmwebsite://site/comparisons",
+    { description: "All competitor comparison page slugs and names", mimeType: "application/json" },
+    async (uri) => ({
+      contents: [{ uri: uri.toString(), mimeType: "application/json", text: JSON.stringify(COMPARISONS_DATA, null, 2) }],
+    }),
+  );
 
-  // ── MCP Resources ────────────────────────────────────────────────────────────
+  server.resource(
+    "Case Studies",
+    "hellocrmwebsite://site/case-studies",
+    { description: "All case study scenarios grouped by industry", mimeType: "application/json" },
+    async (uri) => {
+      const summary = {
+        note: "Use content_list_case_studies tool for full data with filtering.",
+        industries: ["Real Estate", "Legal", "Healthcare", "SaaS", "Manufacturing", "Finance", "Recruitment"],
+      };
+      return { contents: [{ uri: uri.toString(), mimeType: "application/json", text: JSON.stringify(summary, null, 2) }] };
+    },
+  );
 
-  const RESOURCES = [
-    { uri: "hellocrmwebsite://blog/recent", name: "Recent Blog Posts", description: "Last 20 blog posts from hellogrowthcrm.com", mimeType: "application/json" },
-    { uri: "hellocrmwebsite://help/categories", name: "Help Center Categories", description: "All help center categories", mimeType: "application/json" },
-    { uri: "hellocrmwebsite://site/seo-rules", name: "SEO Rules & Guidelines", description: "SEO guardrails for hellogrowthcrm.com content", mimeType: "text/markdown" },
-    { uri: "hellocrmwebsite://site/comparisons", name: "Competitor Comparisons", description: "All competitor comparison page slugs and names", mimeType: "application/json" },
-    { uri: "hellocrmwebsite://site/case-studies", name: "Case Studies", description: "All case study scenarios grouped by industry", mimeType: "application/json" },
-    { uri: "hellocrmwebsite://site/industries", name: "Industry Pages", description: "All industry vertical page slugs", mimeType: "application/json" },
-  ];
-
-  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-    resources: RESOURCES,
-  }));
-
-  server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
-    const uri = req.params.uri;
-
-    if (uri === "hellocrmwebsite://site/seo-rules") {
-      const text = `# SEO Rules (Guardrails)\n\n1. Always link to canonical host: \`https://hellogrowthcrm.com\` (never \`www\`).\n2. Never add internal links to legacy redirect sources.\n3. Add new indexable routes to sitemap unless intentionally excluded.\n4. Do not include redirecting URLs in sitemap entries.\n5. Keep one logical h1 per page.\n6. Every non-decorative image must have meaningful alt text.\n7. Use absolute canonical URLs in metadata.\n8. Keep paginated archives indexable and canonicalized per page.\n9. For out-of-range pagination, redirect to a valid page.\n10. Blog post OpenGraph type must be \`article\`.\n11. Static marketing pages should prefer force-static or ISR when possible.\n12. Avoid duplicate database reads between page render and metadata generation.\n13. Prefer lightweight OG/WebP assets for heavy pages.\n14. Keep Organization.sameAs current across major profiles.\n15. Add structured data only when truthful and complete.\n16. Do not ship broken hreflang references.\n17. Keep internal links crawlable (avoid JS-only critical nav links).\n18. Validate changes with typecheck + lint before merge.`;
-      return { contents: [{ uri, mimeType: "text/markdown", text }] };
-    }
-
-    if (uri === "hellocrmwebsite://site/comparisons") {
-      const comparisons = [
-        { slug: "hubspot", name: "HubSpot", url: "https://hellogrowthcrm.com/compare/hubspot" },
-        { slug: "salesforce", name: "Salesforce", url: "https://hellogrowthcrm.com/compare/salesforce" },
-        { slug: "pipedrive", name: "Pipedrive", url: "https://hellogrowthcrm.com/compare/pipedrive" },
-        { slug: "zoho", name: "Zoho CRM", url: "https://hellogrowthcrm.com/compare/zoho" },
-        { slug: "monday-crm", name: "Monday CRM", url: "https://hellogrowthcrm.com/compare/monday-crm" },
-        { slug: "freshsales", name: "Freshsales", url: "https://hellogrowthcrm.com/compare/freshsales" },
-        { slug: "close-crm", name: "Close CRM", url: "https://hellogrowthcrm.com/compare/close-crm" },
-        { slug: "wati", name: "Wati", url: "https://hellogrowthcrm.com/compare/wati" },
-        { slug: "aisensy", name: "AiSensy", url: "https://hellogrowthcrm.com/compare/aisensy" },
-        { slug: "interakt", name: "Interakt", url: "https://hellogrowthcrm.com/compare/interakt" },
-        { slug: "leadsquared", name: "LeadSquared", url: "https://hellogrowthcrm.com/in/compare/leadsquared" },
-        { slug: "best-crm-for-small-business", name: "Best CRM for Small Business", url: "https://hellogrowthcrm.com/compare/best-crm-for-small-business" },
-      ];
-      return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify(comparisons, null, 2) }] };
-    }
-
-    if (uri === "hellocrmwebsite://site/industries") {
-      const industries = ["Real Estate", "Legal", "Healthcare", "Manufacturing", "SaaS", "Recruitment", "Finance", "Construction", "Education", "Insurance", "Retail", "E-commerce", "Hospitality", "Logistics", "Automotive", "Professional Services", "Non-Profit", "Technology", "Media", "Consulting"].map((name) => ({
+  server.resource(
+    "Industry Pages",
+    "hellocrmwebsite://site/industries",
+    { description: "All industry vertical page slugs", mimeType: "application/json" },
+    async (uri) => {
+      const industries = INDUSTRY_NAMES.map((name) => ({
         name,
-        url: `https://hellogrowthcrm.com/crm-for-${name.toLowerCase().replace(/\s+/g, "-")}`,
+        url: `https://hellogrowthcrm.com/crm-for-${name.toLowerCase().replaceAll(/\s+/g, "-")}`,
       }));
-      return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify(industries, null, 2) }] };
-    }
+      return { contents: [{ uri: uri.toString(), mimeType: "application/json", text: JSON.stringify(industries, null, 2) }] };
+    },
+  );
 
-    if (uri === "hellocrmwebsite://site/case-studies") {
-      // Return summary — full data available via content_list_case_studies tool
-      const summary = { note: "Use content_list_case_studies tool for full data with filtering.", industries: ["Real Estate", "Legal", "Healthcare", "SaaS", "Manufacturing", "Finance", "Recruitment"] };
-      return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify(summary, null, 2) }] };
-    }
+  // ── DB-backed resources ───────────────────────────────────────────────────
 
-    // DB-backed resources
-    try {
-      const db = getSupabase();
-
-      if (uri === "hellocrmwebsite://blog/recent") {
+  server.resource(
+    "Recent Blog Posts",
+    "hellocrmwebsite://blog/recent",
+    { description: "Last 20 blog posts from hellogrowthcrm.com", mimeType: "application/json" },
+    async (uri) => {
+      try {
+        const db = getSupabase();
         const { data, error } = await db.from("blog_posts").select("slug, title, author, category, published_at").order("published_at", { ascending: false }).limit(20);
         if (error) throw new Error(error.message);
-        return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify(data, null, 2) }] };
+        return { contents: [{ uri: uri.toString(), mimeType: "application/json", text: JSON.stringify(data, null, 2) }] };
+      } catch (e) {
+        return { contents: [{ uri: uri.toString(), mimeType: "text/plain", text: `Error fetching resource: ${(e as Error).message}` }] };
       }
+    },
+  );
 
-      if (uri === "hellocrmwebsite://help/categories") {
+  server.resource(
+    "Help Center Categories",
+    "hellocrmwebsite://help/categories",
+    { description: "All help center categories", mimeType: "application/json" },
+    async (uri) => {
+      try {
+        const db = getSupabase();
         const { data, error } = await db.from("help_categories").select("*").order("title");
         if (error) throw new Error(error.message);
-        return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify(data, null, 2) }] };
+        return { contents: [{ uri: uri.toString(), mimeType: "application/json", text: JSON.stringify(data, null, 2) }] };
+      } catch (e) {
+        return { contents: [{ uri: uri.toString(), mimeType: "text/plain", text: `Error fetching resource: ${(e as Error).message}` }] };
       }
-    } catch (e) {
-      return { contents: [{ uri, mimeType: "text/plain", text: `Error fetching resource: ${(e as Error).message}` }] };
-    }
-
-    return { contents: [{ uri, mimeType: "text/plain", text: `Unknown resource: ${uri}` }] };
-  });
+    },
+  );
 
   return server;
 }
+
+// ── IP rate limiter ───────────────────────────────────────────────────────────
 
 class IpRateLimiter {
   private readonly windowMs: number;
@@ -189,10 +172,12 @@ class IpRateLimiter {
   private prune(): void {
     const cutoff = Date.now() - this.windowMs;
     for (const [ip, hits] of this.buckets) {
-      if (hits[hits.length - 1]! <= cutoff) this.buckets.delete(ip);
+      if (hits.at(-1)! <= cutoff) this.buckets.delete(ip);
     }
   }
 }
+
+// ── Server runner ─────────────────────────────────────────────────────────────
 
 export async function runServer(): Promise<void> {
   const transport = (process.env.TRANSPORT ?? "http").toLowerCase();
@@ -209,13 +194,13 @@ export async function runServer(): Promise<void> {
   }
 
   // HTTP + SSE transport
-  const port = parseInt(process.env.PORT ?? "3008", 10);
-  const rateLimitWindow = parseInt(process.env.RATE_LIMIT_WINDOW_MS ?? "60000", 10);
-  const rateLimitMax    = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS ?? "60", 10);
+  const port = Number.parseInt(process.env.PORT ?? "3008", 10);
+  const rateLimitWindow = Number.parseInt(process.env.RATE_LIMIT_WINDOW_MS ?? "60000", 10);
+  const rateLimitMax    = Number.parseInt(process.env.RATE_LIMIT_MAX_REQUESTS ?? "60", 10);
   const limiter = new IpRateLimiter(rateLimitWindow, rateLimitMax);
 
   // One SSEServerTransport per connected client
-  const transports = new Map<string, SSEServerTransport>();
+  const transports = new Map<string, SSEServerTransport>(); // NOSONAR
 
   const httpServer = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://localhost:${port}`);
@@ -230,7 +215,7 @@ export async function runServer(): Promise<void> {
         logger.warn("Rate limit hit", { ip });
         return;
       }
-      const sseTransport = new SSEServerTransport("/message", res);
+      const sseTransport = new SSEServerTransport("/message", res); // NOSONAR
       transports.set(sseTransport.sessionId, sseTransport);
 
       res.on("close", () => transports.delete(sseTransport.sessionId));

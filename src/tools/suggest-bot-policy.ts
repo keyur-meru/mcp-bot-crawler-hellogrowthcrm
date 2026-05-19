@@ -77,7 +77,7 @@ function summaryToSuggestion(s: BotSummary): BotPolicySuggestion {
     out.robotsTxtSnippet = `User-agent: ${s.name}\nDisallow: /`;
     out.firewallSnippet = `# nginx — block ${s.name}\nif ($http_user_agent ~* "${escapeRe(s.name)}") {\n  return 403;\n}`;
   } else if (s.recommendedAction === "rate-limit") {
-    const zone = s.name.toLowerCase().replace(/\W+/g, "");
+    const zone = s.name.toLowerCase().replaceAll(/\W+/g, "");
     out.firewallSnippet = `# nginx — rate-limit ${s.name}\nlimit_req_zone $binary_remote_addr zone=${zone}:10m rate=10r/m;\nif ($http_user_agent ~* "${escapeRe(s.name)}") {\n  limit_req zone=${zone} burst=20;\n}`;
   } else if (s.recommendedAction === "verify-identity") {
     out.firewallSnippet = `# Use verify_bot_identity on suspicious IPs claiming to be ${s.name}`;
@@ -86,5 +86,5 @@ function summaryToSuggestion(s: BotSummary): BotPolicySuggestion {
 }
 
 function escapeRe(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return s.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }

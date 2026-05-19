@@ -22,8 +22,13 @@ interface Feature {
 function slugify(value: string): string {
   return value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "");
+}
+
+function resolveHref(href: string | undefined): string | undefined {
+  if (!href) return undefined;
+  return href.startsWith("http") ? href : `https://hellogrowthcrm.com${href}`;
 }
 
 const RAW_FEATURES: Omit<Feature, "slug">[] = [
@@ -988,7 +993,7 @@ export const featuresList = defineTool({
       }
 
       if (args.plan !== "all") {
-        const tier = args.plan as "free" | "t1" | "t2" | "t3";
+        const tier = args.plan;
         results = results.filter((f) => {
           const val = f[tier];
           return val !== false && val !== undefined;
@@ -1014,11 +1019,7 @@ export const featuresList = defineTool({
           category: f.category,
           summary: f.summary,
           availability: { free: f.free, t1: f.t1, t2: f.t2, t3: f.t3 },
-          learnMoreHref: f.learnMoreHref
-            ? f.learnMoreHref.startsWith("http")
-              ? f.learnMoreHref
-              : `https://hellogrowthcrm.com${f.learnMoreHref}`
-            : undefined,
+          learnMoreHref: resolveHref(f.learnMoreHref),
         })),
       });
     } catch (e) {
@@ -1051,12 +1052,13 @@ export const featuresGet = defineTool({
       if (!feature) {
         const suggestions = FEATURES.filter((f) =>
           f.slug.includes(args.slug.split("-")[0] ?? "") ||
-          f.title.toLowerCase().includes(args.slug.replace(/-/g, " ")),
+          f.title.toLowerCase().includes(args.slug.replaceAll("-", " ")),
         ).slice(0, 5).map((f) => ({ slug: f.slug, title: f.title }));
 
-        return fail(
-          `Feature '${args.slug}' not found.${suggestions.length ? ` Did you mean one of: ${suggestions.map((s) => s.slug).join(", ")}?` : ""}`,
-        );
+        const didYouMean = suggestions.length > 0
+          ? ` Did you mean one of: ${suggestions.map((s) => s.slug).join(", ")}?`
+          : "";
+        return fail(`Feature '${args.slug}' not found.${didYouMean}`);
       }
 
       return ok({
@@ -1072,11 +1074,7 @@ export const featuresGet = defineTool({
           t3_revops_partner: feature.t3,
         },
         aliases: feature.aliases ?? [],
-        learnMoreUrl: feature.learnMoreHref
-          ? feature.learnMoreHref.startsWith("http")
-            ? feature.learnMoreHref
-            : `https://hellogrowthcrm.com${feature.learnMoreHref}`
-          : undefined,
+        learnMoreUrl: resolveHref(feature.learnMoreHref),
       });
     } catch (e) {
       return fail((e as Error).message);
