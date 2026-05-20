@@ -259,7 +259,3 @@ export async function runServer(): Promise<void> {
     tools: [...toolsByName.keys()],
   });
 }
-RL ?? "https://hellogrowthcrm.com",
-    tools: [...toolsByName.keys()],
-  });
-}

@@ -138,8 +138,7 @@ function matchPattern(pattern: string, path: string): boolean {
   const segments = p.split('*');
 
   let pos = 0;
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
+  for (const [i, seg] of segments.entries()) {
     if (i === 0) {
       // The pattern must match from the start of the path.
       if (!path.startsWith(seg)) return false;
