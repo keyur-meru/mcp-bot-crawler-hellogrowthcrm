@@ -130,14 +130,30 @@ function longestMatch(patterns: string[], path: string): string | null {
 }
 
 function matchPattern(pattern: string, path: string): boolean {
-  // Translate robots.txt globs ($, *) into a RegExp.
-  const escaped = pattern.replaceAll(/[.+?^${}()|[\]\\]/g, String.raw`\$&`);
-  const re = "^" + escaped.replaceAll(/\*/g, ".*").replaceAll(/\\\$$/g, "$");
-  try {
-    return new RegExp(re).test(path);
-  } catch {
-    return path.startsWith(pattern);
+  // Linear-time robots.txt glob matching (no regex, no ReDoS risk).
+  // Robots.txt glob rules: '*' matches any sequence of chars; '$' at the end
+  // of the pattern anchors to the end of the path.
+  const hasEndAnchor = pattern.endsWith('$');
+  const p = hasEndAnchor ? pattern.slice(0, -1) : pattern;
+  const segments = p.split('*');
+
+  let pos = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (i === 0) {
+      // The pattern must match from the start of the path.
+      if (!path.startsWith(seg)) return false;
+      pos = seg.length;
+    } else {
+      // Each subsequent segment must be found somewhere after the current position.
+      const idx = path.indexOf(seg, pos);
+      if (idx === -1) return false;
+      pos = idx + seg.length;
+    }
   }
+
+  // If the pattern ended with '$', the entire path must have been consumed.
+  return !hasEndAnchor || pos === path.length;
 }
 
 /** Very small sitemap.xml parser using regex — avoids an XML dependency. */

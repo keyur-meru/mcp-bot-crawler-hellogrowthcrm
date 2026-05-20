@@ -54,17 +54,16 @@ export function buildServer(): McpServer {
   // Register all tools dynamically from the tools registry.
   for (const tool of toolsByName.values()) {
     const shape = (tool.schema as unknown as { shape: ZodRawShape }).shape;
-    server.tool(
+    server.registerTool(
       tool.definition.name,
-      tool.definition.description,
-      shape,
+      { description: tool.definition.description, inputSchema: shape },
       async (args) => tool.handle(args) as unknown as CallToolResult,
     );
   }
 
   // ── Static resources ──────────────────────────────────────────────────────
 
-  server.resource(
+  server.registerResource(
     "SEO Rules & Guidelines",
     "hellocrmwebsite://site/seo-rules",
     { description: "SEO guardrails for hellogrowthcrm.com content", mimeType: "text/markdown" },
@@ -73,7 +72,7 @@ export function buildServer(): McpServer {
     }),
   );
 
-  server.resource(
+  server.registerResource(
     "Competitor Comparisons",
     "hellocrmwebsite://site/comparisons",
     { description: "All competitor comparison page slugs and names", mimeType: "application/json" },
@@ -82,7 +81,7 @@ export function buildServer(): McpServer {
     }),
   );
 
-  server.resource(
+  server.registerResource(
     "Case Studies",
     "hellocrmwebsite://site/case-studies",
     { description: "All case study scenarios grouped by industry", mimeType: "application/json" },
@@ -95,7 +94,7 @@ export function buildServer(): McpServer {
     },
   );
 
-  server.resource(
+  server.registerResource(
     "Industry Pages",
     "hellocrmwebsite://site/industries",
     { description: "All industry vertical page slugs", mimeType: "application/json" },
@@ -110,7 +109,7 @@ export function buildServer(): McpServer {
 
   // ── DB-backed resources ───────────────────────────────────────────────────
 
-  server.resource(
+  server.registerResource(
     "Recent Blog Posts",
     "hellocrmwebsite://blog/recent",
     { description: "Last 20 blog posts from hellogrowthcrm.com", mimeType: "application/json" },
@@ -126,7 +125,7 @@ export function buildServer(): McpServer {
     },
   );
 
-  server.resource(
+  server.registerResource(
     "Help Center Categories",
     "hellocrmwebsite://help/categories",
     { description: "All help center categories", mimeType: "application/json" },
@@ -257,6 +256,10 @@ export async function runServer(): Promise<void> {
     url: `http://localhost:${port}`,
     sse: `http://localhost:${port}/sse`,
     site: process.env.DEFAULT_TARGET_URL ?? "https://hellogrowthcrm.com",
+    tools: [...toolsByName.keys()],
+  });
+}
+RL ?? "https://hellogrowthcrm.com",
     tools: [...toolsByName.keys()],
   });
 }

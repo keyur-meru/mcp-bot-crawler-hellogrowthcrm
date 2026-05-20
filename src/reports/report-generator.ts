@@ -187,5 +187,5 @@ function escapeCsvCell(value: string): string {
 }
 
 function escapeMarkdownCell(value: string): string {
-  return value.replaceAll(/\|/g, String.raw`\|`).replaceAll(/\r?\n/g, "<br>");
+  return value.replaceAll('|', String.raw`\|`).replaceAll(/\r?\n/g, "<br>");
 }
