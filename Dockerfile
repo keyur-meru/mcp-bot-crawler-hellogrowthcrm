@@ -25,7 +25,11 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=builder /app/dist ./dist
 COPY samples ./samples
 
-RUN mkdir -p reports
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && mkdir -p reports \
+    && chown -R appuser:appgroup /app
+
+USER appuser
 
 EXPOSE 3008
 

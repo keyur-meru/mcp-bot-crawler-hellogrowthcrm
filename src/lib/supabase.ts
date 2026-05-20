@@ -2,6 +2,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let _client: SupabaseClient | null = null;
 
+/** Replace the cached client — for use in tests only. */
+export function __setClientForTest(client: SupabaseClient | null): void {
+  _client = client;
+}
+
 export function getSupabase(): SupabaseClient {
   if (_client) return _client;
   const url = process.env.SUPABASE_URL;
