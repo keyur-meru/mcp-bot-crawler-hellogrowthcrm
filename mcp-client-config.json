@@ -1,0 +1,80 @@
+{
+  "_comment": "MCP client configuration for mcp-bot-crawler — hellogrowthcrm.com",
+  "_docs": "https://modelcontextprotocol.io/docs/concepts/clients",
+
+  "claude_desktop": {
+    "_comment": "Paste the 'mcpServers' block into ~/Library/Application Support/Claude/claude_desktop_config.json (macOS) or %APPDATA%\\Claude\\claude_desktop_config.json (Windows)",
+
+    "stdio_local": {
+      "_description": "Run the server as a local child process (stdio transport). Requires 'npm run build' first.",
+      "mcpServers": {
+        "hellogrowthcrm-bots": {
+          "command": "node",
+          "args": [
+            "C:\\Users\\Ghanshyam\\Documents\\GitHub\\mcp-bot-crawler-hellogrowthcrm-main (1)\\mcp-bot-crawler-hellogrowthcrm-main\\dist\\index.js"
+          ],
+          "env": {
+            "TRANSPORT": "stdio",
+            "SUPABASE_URL": "https://wevwnnzjbrwidvycbkon.supabase.co",
+            "SUPABASE_SERVICE_ROLE_KEY": "<paste-key-here>",
+            "DEFAULT_TARGET_URL": "https://hellogrowthcrm.com",
+            "LOG_LEVEL": "warn"
+          }
+        }
+      }
+    },
+
+    "http_remote": {
+      "_description": "Connect to a running HTTP+SSE server (TRANSPORT=http, PORT=3008). Start the server with 'npm start' first.",
+      "mcpServers": {
+        "hellogrowthcrm-bots": {
+          "url": "http://localhost:3008/sse"
+        }
+      }
+    }
+  },
+
+  "claude_code": {
+    "_comment": "Add to your project's .claude/settings.json under 'mcpServers', or run: claude mcp add hellogrowthcrm-bots node <path>/dist/index.js",
+
+    "stdio_local": {
+      "mcpServers": {
+        "hellogrowthcrm-bots": {
+          "command": "node",
+          "args": [
+            "C:\\Users\\Ghanshyam\\Documents\\GitHub\\mcp-bot-crawler-hellogrowthcrm-main (1)\\mcp-bot-crawler-hellogrowthcrm-main\\dist\\index.js"
+          ],
+          "env": {
+            "TRANSPORT": "stdio",
+            "SUPABASE_URL": "https://wevwnnzjbrwidvycbkon.supabase.co",
+            "SUPABASE_SERVICE_ROLE_KEY": "<paste-key-here>",
+            "DEFAULT_TARGET_URL": "https://hellogrowthcrm.com",
+            "LOG_LEVEL": "warn"
+          }
+        }
+      }
+    },
+
+    "http_remote": {
+      "mcpServers": {
+        "hellogrowthcrm-bots": {
+          "url": "http://localhost:3008/sse"
+        }
+      }
+    }
+  },
+
+  "cursor": {
+    "_comment": "In Cursor: Settings > Features > MCP > Add new MCP server",
+    "name": "hellogrowthcrm-bots",
+    "type": "sse",
+    "serverUrl": "http://localhost:3008/sse"
+  },
+
+  "quick_start": {
+    "step_1_build": "npm install && npm run build",
+    "step_2_run_stdio": "TRANSPORT=stdio node dist/index.js",
+    "step_2_run_http": "TRANSPORT=http PORT=3008 node dist/index.js",
+    "step_3_test": "node test-mcp.mjs"
+  }
+}
