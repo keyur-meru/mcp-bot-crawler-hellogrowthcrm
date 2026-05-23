@@ -77,6 +77,13 @@ import {
   featuresListProducts,
 } from "./features.js";
 
+// ── Integrations ──────────────────────────────────────────────────────────────
+import {
+  integrationsListCategories,
+  integrationsList,
+  integrationsGet,
+} from "./integrations.js";
+
 // ── Analytics ─────────────────────────────────────────────────────────────────
 import {
   analyticsSocialProof,
@@ -142,6 +149,11 @@ export const tools: RegisteredTool[] = [
   featuresList,
   featuresGet,
   featuresListProducts,
+
+  // Integrations
+  integrationsListCategories,
+  integrationsList,
+  integrationsGet,
 
   // Analytics
   analyticsSocialProof,
