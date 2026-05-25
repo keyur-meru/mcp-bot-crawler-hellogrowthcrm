@@ -16,6 +16,7 @@ let _error: { message: string } | null = null;
 let _throwOnFrom = false;
 
 function makeQueryBuilder() {
+  const settle = () => Promise.resolve({ data: _data, error: _error });
   const b: Record<string, unknown> = {
     select: () => b,
     order: () => b,
@@ -24,12 +25,15 @@ function makeQueryBuilder() {
     lte: () => b,
     eq: () => b,
     insert: () => b,
-    single: () => Promise.resolve({ data: _data, error: _error }),
-    then: (
-      resolve: (v: unknown) => unknown,
-      reject?: (e: unknown) => unknown,
-    ) => Promise.resolve({ data: _data, error: _error }).then(resolve, reject),
+    single: () => settle(),
   };
+  // The real Supabase query builder is awaitable, so the mock must be too.
+  // Attach `then` via assignment (not as an object-literal key) so the builder
+  // stays thenable without tripping the no-thenable lint rule.
+  (b as { then: PromiseLike<unknown>["then"] }).then = (
+    resolve: (v: unknown) => unknown,
+    reject?: (e: unknown) => unknown,
+  ) => settle().then(resolve, reject);
   return b;
 }
 

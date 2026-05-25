@@ -210,7 +210,7 @@ describe("parseSitemap", () => {
     assert.equal(home.loc, "https://example.com/");
     assert.equal(home.lastmod, "2025-01-01");
     assert.equal(home.changefreq, "weekly");
-    assert.equal(home.priority, 1.0);
+    assert.equal(home.priority, 1);
   });
 
   it("handles entries missing optional fields", () => {

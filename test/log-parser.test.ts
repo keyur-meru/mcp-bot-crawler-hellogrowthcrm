@@ -1,17 +1,18 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { parseLine, parseAccessLog, clfToIso } from "../src/core/log-parser.ts";
+import { IP } from "./fixtures.ts";
 
 // ── parseLine ─────────────────────────────────────────────────────────────────
 
 const COMBINED_LINE =
-  '66.249.66.1 - - [10/Oct/2025:13:55:36 +0000] "GET /index.html HTTP/1.1" 200 2326 "-" "Mozilla/5.0 (compatible; Googlebot/2.1)"';
+  `${IP.GOOGLEBOT} - - [10/Oct/2025:13:55:36 +0000] "GET /index.html HTTP/1.1" 200 2326 "-" "Mozilla/5.0 (compatible; Googlebot/2.1)"`;
 
 describe("parseLine", () => {
   it("parses a standard Combined Log Format line", () => {
     const entry = parseLine(COMBINED_LINE);
     assert.ok(entry !== null);
-    assert.equal(entry.ip, "66.249.66.1");
+    assert.equal(entry.ip, IP.GOOGLEBOT);
     assert.equal(entry.method, "GET");
     assert.equal(entry.path, "/index.html");
     assert.equal(entry.status, 200);
@@ -22,7 +23,7 @@ describe("parseLine", () => {
 
   it("parses referer when present", () => {
     const line =
-      '1.2.3.4 - - [10/Oct/2025:14:00:00 +0000] "GET /page HTTP/1.1" 200 512 "https://google.com" "SomeBot/1.0"';
+      `${IP.GENERIC_A} - - [10/Oct/2025:14:00:00 +0000] "GET /page HTTP/1.1" 200 512 "https://google.com" "SomeBot/1.0"`;
     const entry = parseLine(line);
     assert.ok(entry !== null);
     assert.equal(entry.referer, "https://google.com");
@@ -30,7 +31,7 @@ describe("parseLine", () => {
 
   it("maps bytes field '-' to 0", () => {
     const line =
-      '1.2.3.4 - - [10/Oct/2025:14:00:00 +0000] "GET /page HTTP/1.1" 304 - "-" "SomeBot/1.0"';
+      `${IP.GENERIC_A} - - [10/Oct/2025:14:00:00 +0000] "GET /page HTTP/1.1" 304 - "-" "SomeBot/1.0"`;
     const entry = parseLine(line);
     assert.ok(entry !== null);
     assert.equal(entry.bytes, 0);
@@ -57,7 +58,7 @@ describe("parseLine", () => {
 
   it("parses POST method correctly", () => {
     const line =
-      '10.0.0.1 - - [01/Jan/2025:00:00:00 +0000] "POST /api/submit HTTP/2.0" 201 100 "-" "curl/7.88"';
+      `${IP.PRIVATE} - - [01/Jan/2025:00:00:00 +0000] "POST /api/submit HTTP/2.0" 201 100 "-" "curl/7.88"`;
     const entry = parseLine(line);
     assert.ok(entry !== null);
     assert.equal(entry.method, "POST");
@@ -71,8 +72,8 @@ describe("parseLine", () => {
 describe("parseAccessLog", () => {
   it("parses multiple valid lines", () => {
     const text = [
-      '1.1.1.1 - - [10/Oct/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 1000 "-" "BotA/1.0"',
-      '2.2.2.2 - - [10/Oct/2025:10:01:00 +0000] "GET /about HTTP/1.1" 200 800 "-" "BotB/2.0"',
+      `${IP.GENERIC_B} - - [10/Oct/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 1000 "-" "BotA/1.0"`,
+      `${IP.GENERIC_C} - - [10/Oct/2025:10:01:00 +0000] "GET /about HTTP/1.1" 200 800 "-" "BotB/2.0"`,
     ].join("\n");
     const { entries, skipped } = parseAccessLog(text);
     assert.equal(entries.length, 2);
@@ -81,7 +82,7 @@ describe("parseAccessLog", () => {
 
   it("counts unparseable lines as skipped", () => {
     const text = [
-      '1.1.1.1 - - [10/Oct/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 1000 "-" "BotA/1.0"',
+      `${IP.GENERIC_B} - - [10/Oct/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 1000 "-" "BotA/1.0"`,
       "this is not a valid log line",
       "",
     ].join("\n");
@@ -97,7 +98,7 @@ describe("parseAccessLog", () => {
   });
 
   it("handles CRLF line endings", () => {
-    const line = '1.1.1.1 - - [10/Oct/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 1000 "-" "Bot/1.0"';
+    const line = `${IP.GENERIC_B} - - [10/Oct/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 1000 "-" "Bot/1.0"`;
     const { entries } = parseAccessLog(`${line}\r\n${line}`);
     assert.equal(entries.length, 2);
   });
@@ -105,7 +106,7 @@ describe("parseAccessLog", () => {
   it("counts comment lines as skipped (non-empty but unparseable)", () => {
     const text = [
       "# Software: nginx",
-      '1.1.1.1 - - [10/Oct/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 100 "-" "Bot/1.0"',
+      `${IP.GENERIC_B} - - [10/Oct/2025:10:00:00 +0000] "GET / HTTP/1.1" 200 100 "-" "Bot/1.0"`,
     ].join("\n");
     const { entries, skipped } = parseAccessLog(text);
     assert.equal(entries.length, 1);

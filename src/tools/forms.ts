@@ -162,7 +162,9 @@ export const formsExportCsv = defineTool({
         } else if (typeof v === "object") {
           str = JSON.stringify(v);
         } else {
-          str = String(v);
+          // At this point v is a primitive (string/number/boolean/bigint/symbol),
+          // so String() cannot produce "[object Object]".
+          str = String(v as string | number | boolean | bigint | symbol);
         }
         return `"${str.replaceAll('"', '""')}"`;
       };

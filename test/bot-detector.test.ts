@@ -8,6 +8,7 @@ import {
 } from "../src/core/bot-detector.ts";
 import type { BehaviorSignals } from "../src/core/bot-detector.ts";
 import type { LogEntry } from "../src/utils/types.ts";
+import { IP } from "./fixtures.ts";
 
 // ── detectByUserAgent ─────────────────────────────────────────────────────────
 
@@ -206,7 +207,7 @@ describe("recommendAction", () => {
 describe("classifyEntry", () => {
   it("classifies a log entry with a known bot UA", () => {
     const entry: LogEntry = {
-      ip: "66.249.66.1",
+      ip: IP.GOOGLEBOT,
       timestamp: "10/Oct/2025:10:00:00 +0000",
       method: "GET",
       path: "/",
@@ -223,7 +224,7 @@ describe("classifyEntry", () => {
 
   it("classifies a log entry with a human UA as not-matched", () => {
     const entry: LogEntry = {
-      ip: "1.2.3.4",
+      ip: IP.GENERIC_A,
       timestamp: "10/Oct/2025:10:00:00 +0000",
       method: "GET",
       path: "/pricing",
